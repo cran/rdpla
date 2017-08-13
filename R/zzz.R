@@ -9,10 +9,11 @@ pluck <- function(x, name, type) {
   }
 }
 
-dpbase <- function() "http://api.dp.la/v2/"
+dpbase <- function() "https://api.dp.la"
 
-dpla_GET <- function(url, args, ...){
-  tt <- httr::GET(url, query = args, ...)
+dpla_GET <- function(path, args, ...){
+  cli <- crul::HttpClient$new(url = dpbase())
+  tt <- cli$get(path = file.path("v2", path), query = args, ...)
   err_catch(tt)
 }
 
@@ -41,9 +42,10 @@ key_check <- function(x) {
 }
 
 err_catch <- function(x) {
-  if (!inherits(x, "response")) stop("object not of class 'response'", call. = FALSE)
+  if (!inherits(x, "HttpResponse")) stop("object not of class 'response'",
+                                     call. = FALSE)
   if (x$status_code > 201) {
-    xx <- contt(x)
+    xx <- x$parse("UTF-8")
     res <- tryCatch(jsonlite::fromJSON(xx), error = function(e) e)
     if (inherits(res, "error")) {
       stop(xx, call. = FALSE)
@@ -51,8 +53,8 @@ err_catch <- function(x) {
       stop(res$message, call. = FALSE)
     }
   } else {
-    stopifnot(x$headers$`content-type` == "application/json; charset=utf-8")
-    txt <- contt(x)
+    stopifnot(x$response_headers$`content-type` == "application/json; charset=utf-8")
+    txt <- x$parse("UTF-8")
     res <- tryCatch(jsonlite::fromJSON(txt), error = function(e) e)
     if (inherits(res, "error")) {
       stop(txt, call. = FALSE)
@@ -63,6 +65,11 @@ err_catch <- function(x) {
   }
 }
 
-contt <- function(x) {
-  httr::content(x, as = "text", encoding = "UTF-8")
+assert <- function(x, y) {
+  if (!is.null(x)) {
+    if (!class(x) %in% y) {
+      stop(deparse(substitute(x)), " must be of class ",
+           paste0(y, collapse = ", "), call. = FALSE)
+    }
+  }
 }
